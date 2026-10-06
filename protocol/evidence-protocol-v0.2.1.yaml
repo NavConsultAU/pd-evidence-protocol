@@ -1,0 +1,324 @@
+# Evidence grading protocol
+# The control surface: every rule below is a dial. Change a value, bump the
+# version, re-run the pipeline, and diff the answers. Never override a grade
+# by hand; if a grade feels wrong, the rule is wrong - fix it here.
+
+protocol: pd-evidence-grading
+version: 0.2.1
+date: 2026-08-17
+status: draft - for review by Ryan and a clinician reviewer (unappointed)
+applies_to: "all evidence questions. Run so far: Q3 (exercise, diet, gut health),
+             Q4 (medication - levodopa timing, wearing-off, disease modification,
+             impulse control, tremor)."
+
+changelog:
+  0.2.1: "Three proposals accepted (q4-run-note, approved by Ryan 2026-08-17), all
+          three surfaced by running Q4 rather than by review of Q3. P-8: W-8c split.
+          It was firing on 55 of 110 Q4 studies, mostly because the paper could not
+          be reached rather than because it carries no funding statement, so it was
+          penalising studies for our retrieval. W-8c now applies only to a confirmed
+          absence in a text we actually read; new W-8d flags an unreachable statement
+          at zero points and lifts on retrieval, following W-11's precedent. P-9: new
+          governance rule G-7 requiring claims to be stated as positive assertions.
+          Six Q4 claims arrived phrased as negatives, where a Priority 3 grade
+          asserted the opposite of the evidence. P-10: design_base declared for
+          meta-analyses of observational studies at 3, matching the value the control
+          panel had been using undocumented since v0.1. Q3 re-graded: no claim moves.
+          Q4 re-graded: see the v0.2.1 diff shipped with this version."
+  0.2.0: "Seven proposals accepted (protocol-v0.2-rule-proposals, reviewed and
+          approved by Ryan 2026-08-15). New: claim lanes L-1 (P-1); external-
+          evidence rules X-1/X-2 (P-2, P-3); non-extractable-results modifier
+          W-11 (P-4); stacking rule S-1 (P-5); active-comparator blinding
+          W-3c and claim-level body-of-evidence B-1 (P-7). Workbook change:
+          D17 MEDI-PD re-graded Priority 2 -> 3 on its null primary (P-6).
+          Engine-vs-workbook agreement 30/36 -> 37/37 (fibre row now
+          gradable via X-2). Full rationale and per-row predictions in
+          protocol-v0.2-rule-proposals.pdf, which is this version's G-3 log."
+  0.1.1: "Tier labels renamed from advice language to priority language
+          (per a community reviewer's comment, 2026-08-13: 'act on it' reads as medical
+          advice).
+          Tier 1 'Act on it' -> 'Priority 1'; tier 2 'Promising' -> 'Priority 2';
+          tier 3 'Not supported' -> 'Priority 3'. Grading rules unchanged; no
+          study changes tier. New governance rule G-6: standard disclaimer
+          required on all patient-facing artifacts. Per G-3, this diff ships
+          with the next answer."
+  0.1.0: "Initial draft, 2026-08-11."
+
+# ---------------------------------------------------------------------------
+# SR - source registry
+# What is allowed to count as evidence, and at what trust level.
+# ---------------------------------------------------------------------------
+source_registry:
+  S_authoritative:
+    members: [cochrane_reviews, clinicaltrials_gov, anzctr, who_ictrp]
+    role: "Registries are the single source of truth for trial status and
+           pre-declared outcomes. Cochrane outranks other syntheses."
+  A_peer_reviewed:
+    members: [journals_indexed_in_pubmed_or_embase]
+    role: "Standard evidence. Journal-level check against predatory list
+           (Beall successor lists) before admission."
+  B_preprint:
+    members: [medrxiv, biorxiv]
+    role: "Admissible for horizon-scanning. Grade capped (see C-3).
+           Flagged 'preprint - not peer reviewed' wherever shown."
+  C_grey:
+    members: [conference_abstracts, theses, registry_only_results]
+    role: "The excavation layer's raw material. Enters as leads;
+           graded only if it survives extraction against the schema."
+  D_community:
+    members: [member_reports, patient_forums]
+    role: "Hypothesis generation ONLY. Never graded as clinical evidence.
+           Feeds excavation (E-7) and the future member loop."
+  X_excluded:
+    members: [press_releases, news_coverage, vendor_content, supplement_marketing]
+    role: "Never evidence. Usable only as pointers to a primary source.
+           (The '70% flavonoid survival' figure died here in Q3.)"
+
+# ---------------------------------------------------------------------------
+# L - claim lanes (new in 0.2, P-1)
+# Every claim is assigned a lane at extraction. The lane decides which grading
+# scale applies. Grading the malnutrition prevalence estimate with intervention
+# rules was the v0.1 gap this closes.
+# ---------------------------------------------------------------------------
+lanes:
+  L-1_intervention:
+    question: "does X help?"
+    rule: "Grades under design_base + modifiers + caps unchanged."
+  L-1_prevalence_safety:
+    question: "how common is X? is X hazardous?"
+    rule: "Observational designs are the appropriate designs here, so C-1 does
+           not apply. SR/meta-analysis of adequate observational studies bases
+           at 5; single observational studies at 3. W-8c records its flag
+           against confidence but does not subtract (consistent with its own
+           v0.1 note). All other modifiers apply."
+  L-1_risk_association:
+    question: "is X linked to getting PD?"
+    rule: "Grades under existing rules, always displayed with the
+           'about risk, not progression' wording."
+
+# ---------------------------------------------------------------------------
+# DS - design base scores
+# Starting score by study design, before modifiers. (Intervention and
+# risk-association lanes; the prevalence/safety lane bases per L-1.)
+# ---------------------------------------------------------------------------
+design_base:
+  meta_analysis_of_rcts: 5
+  # 0.2.1 (P-10): declared. A meta-analysis of observational studies is stronger
+  # than any single observational study and weaker than a meta-analysis of trials.
+  # Cap C-1 still applies to it outside the L-1 prevalence lane, so the score is a
+  # starting point rather than a route to Priority 1.
+  meta_analysis_observational: 3
+  rct: 4
+  prospective_cohort: 3
+  case_control: 2
+  cross_sectional: 1
+  mechanistic_or_animal: 1
+
+# ---------------------------------------------------------------------------
+# W - weights and modifiers
+# Applied to the base score. Each has an id so disagreement can be specific:
+# "change W-2a from -1 to -2" is a reviewable proposal; "that grade feels
+# harsh" is not.
+# ---------------------------------------------------------------------------
+modifiers:
+  W-1_replication:     { value: +1, when: "independently replicated by a second group" }
+  W-2a_small_n:        { value: -1, when: "n < 50" }
+  W-2b_large_n:        { value: +1, when: "n > 500 or pooled n > 1000" }
+  W-3a_double_blind:   { value: +1, when: "double-blind with credible placebo/sham" }
+  W-3b_open_label:     { value: -1, when: "open-label or no blinding" }
+  W-3c_active_comparator: { new_in: 0.2, rule: "In trials where participant
+                            blinding is impossible by the nature of the
+                            intervention (exercise, diet, physiotherapy):
+                            W-3b does not apply if outcome assessors were
+                            blinded and the primary outcome is objective or
+                            rater-scored; W-3b applies in full if assessors
+                            were unblinded or the primary outcome is
+                            self-reported. W-3a and its bonus are never
+                            available to such trials. Replaces the control
+                            panel's unofficial 'strict blinding' toggle." }
+  W-4_secondary_only:  { value: -1, when: "claim rests on a secondary outcome", also: "cap at tier 2" }
+  W-5_surrogate:       { value:  0, when: "outcome is a surrogate (imaging, biomarker)", also: "cap at tier 2" }
+  W-6_heterogeneity:   { value: -1, when: "meta-analysis with I2 > 50%" }
+  W-7_below_mcid:      { value: -1, when: "effect smaller than minimal clinically important difference" }
+  W-8a_interested_funder: { value: -2, when: "funder sells or markets the intervention AND design is weak
+                            (open-label, surrogate, or secondary outcome). Strong design neutralises:
+                            a preregistered double-blind industry RCT keeps its score, disclosed." }
+  W-8b_funder_in_conduct: { value: -1, when: "any funder (including nonprofits) participated in design,
+                            conduct, analysis, or manuscript - as disclosed. Triggered by Barichella 2016." }
+  W-8c_no_disclosure:  { value: -1, when: "the full text was obtained and carries no funding or
+                            COI statement", note: "counts against confidence, not against the
+                            finding; common in pre-2010 papers. Revised in 0.2.1 (P-8): absence
+                            may only be recorded from a document we actually read. Where the
+                            text could not be obtained, W-8d applies instead." }
+  W-8d_disclosure_not_retrievable: { value: 0, new_in: 0.2.1, when: "a funding or COI statement
+                            could not be obtained because the source itself was unreachable
+                            (paywall, captcha, robots block, dead link)",
+                            also: "flag 'funding statement not retrieved'. No points. Resolves
+                            to W-8c or to a recorded funder the moment the text is obtained.
+                            Like W-11, this is a statement about our access, not about the
+                            study, and it must never cost a study points." }
+  W-9a_single_centre:  { value: -1, when: "single centre and unreplicated" }
+  W-9b_geo_cluster:    { value:  0, when: "positive results cluster in one country/region while
+                            multicentre trials elsewhere are negative", also: "flag prominently
+                            (live example: FMT - positive single-centre Asian trials, negative
+                            multicentre European trials)" }
+  W-10_attrition:      { value: -1, when: "dropout > 20% without adequate handling" }
+  W-11_not_extractable: { value: -1, new_in: 0.2, when: "key result cannot be
+                            fully extracted and verified from accessible
+                            sources (paywalled effect sizes, inaccessible
+                            supplements, figures without data)",
+                            also: "cap at Priority 2; flag 'result not fully
+                            verifiable'. Cap and point lift the moment the
+                            numbers are obtained and verified - this is a
+                            statement about our verification, not the study." }
+
+# ---------------------------------------------------------------------------
+# S - stacking rules (new in 0.2, P-5)
+# ---------------------------------------------------------------------------
+stacking:
+  S-1: "When W-3b and W-9a both fire on the same study, apply -1 in total,
+        not -2, and show both flags. They are symptoms of the same underlying
+        thing: a modest single-site study without the resources for blinding
+        or multicentre design. Each still applies at full value alone.
+        W-2a remains independent - sample size is a distinct weakness."
+
+# ---------------------------------------------------------------------------
+# X - external evidence (new in 0.2, P-2 / P-3)
+# When general-population evidence may enter a Parkinson's question.
+# ---------------------------------------------------------------------------
+external_evidence:
+  X-1_external_replication:
+    rule: "For a symptomatic, non-PD-specific outcome (the symptom and its
+           treatment mechanism are not altered by PD in a way that would
+           change the direction of effect), Cochrane-level general-population
+           evidence for the same intervention and outcome counts as
+           replication: W-1 applies, W-9a is neutralised, and C-4 is waived -
+           provided at least one adequately designed PD trial confirms the
+           direction of effect. Always displayed with the flag 'graded with
+           external evidence', naming the external source. The
+           PD-specificity judgement is recorded at extraction and is itself
+           reviewable. Trigger case: macrogol (G4)."
+  X-2_external_only:
+    rule: "A claim resting entirely on external general-population evidence
+           (no confirming PD trial) is gradable when the X-1 non-PD-specificity
+           condition holds, but is capped at Priority 2 however strong the
+           external evidence, and carries the flag 'no adequately powered PD
+           trial - graded on external evidence'. If the condition does not
+           hold, the claim stays Context. Trigger case: fibre (G8)."
+
+# ---------------------------------------------------------------------------
+# C - caps
+# A cap cannot be bought back by bonuses.
+# ---------------------------------------------------------------------------
+caps:
+  C-1: { max_tier: 2, for: "any observational design, regardless of size" }
+  C-2: { max_tier: 2, for: "pilot / feasibility trials" }
+  C-3: { max_tier: 2, for: "preprints" }
+  C-4: { max_tier: 2, for: "single unreplicated RCT, unless multicentre + preregistered
+                            + significant on primary outcome" }
+
+# ---------------------------------------------------------------------------
+# T - tier mapping
+# ---------------------------------------------------------------------------
+tiers:
+  # 0.1.1: labels are priority language, not advice language. A priority ranks
+  # the strength of evidence for a claim; it never tells anyone what to do.
+  priority_1:  { label: "Priority 1", gloss: "strongest evidence",
+                 min_score: 5, plus: "no cap in force; risk acceptable; effect noticeable" }
+  priority_2:  { label: "Priority 2", gloss: "promising, unproven", min_score: 3 }
+  priority_3:  { label: "Priority 3", gloss: "not supported by current evidence",
+                 rule: "score < 3, OR pooled RCT evidence is negative for the claim.
+                                  A negative meta-analysis outranks any positive single trial
+                                  (this is what settles FMT and boxing)." }
+  pending:               { rule: "definitive trial registered and unreported - never anticipate results" }
+  context:               { rule: "background science and guidelines; not graded" }
+
+# ---------------------------------------------------------------------------
+# B - claim-level grading (new in 0.2, P-7 companion)
+# ---------------------------------------------------------------------------
+claim_level:
+  B-1: "Where a claim is supported by two or more independent RCTs and a
+        concordant meta-analysis, the claim takes the grade of the pooled
+        body of evidence, and W-2a is assessed against pooled n rather than
+        against each trial alone. Individual rows keep their own scores; the
+        claim-level grade is what the answer cites. Writes down what 'the
+        grade attaches to the claim, not the study' already implies.
+        Trigger case: progressive resistance training (E5, PRET-PD)."
+
+# ---------------------------------------------------------------------------
+# F - funding and conflict rules
+# Answering: 'should funding be disclosed, and how is that controlled?'
+# ---------------------------------------------------------------------------
+funding:
+  F-1: "Extraction of funder, funder role, and declared COI is a mandatory
+        schema field for every study. Revised in 0.2.1 (P-8): the status is recorded
+        as one of three values, never as a blank and never as a bare 'not found'.
+          found          - a statement was obtained and is recorded.
+          absent         - the full text was obtained and carries no statement (W-8c).
+          not_retrievable - the source could not be reached, so nothing can be said
+                           either way (W-8d).
+        A study may only be marked 'absent' on the basis of a document that was
+        actually read. Where extraction was blocked, the honest value is
+        'not_retrievable', and it is expected to change when retrieval improves."
+  F-2: "Funding is always displayed beside the finding. It never silently
+        excludes a study - transparency, not censorship."
+  F-3: "Penalties only via W-8a/b/c. The trigger is the combination of
+        interest and weak design, not industry funding per se."
+  F-4: "Any tier-1 claim in a published answer must carry its funding
+        disclosure into the synthesis, not just the table."
+  F-5: "Non-financial bias is assessed alongside: researcher allegiance
+        (a modality's inventor trialling it), geographic clusters (W-9b)."
+
+# ---------------------------------------------------------------------------
+# E - excavation layer
+# Where non-obvious findings live. Synthesis of prominent public evidence
+# will rarely surprise; these seven searches can.
+# ---------------------------------------------------------------------------
+excavation:
+  E-1: "Registry sweep: trials completed > 2 years ago with no linked
+        publication. Unpublished nulls change pooled answers."
+  E-2: "Registry results database: outcome data posted to ClinicalTrials.gov
+        that never reached a journal."
+  E-3: "Preprint monitor for the question's terms (medRxiv)."
+  E-4: "Conference abstracts (MDS Congress and similar) - results surface
+        here 1-2 years before journals."
+  E-5: "Contradiction mining: where community practice diverges from evidence
+        (boxing), or evidence diverges by geography (FMT). Each divergence
+        is a research question nobody has framed."
+  E-6: "Cross-study subgroup mining: signals consistent across studies but
+        headline in none (sex differences in the diet cohorts)."
+  E-7: "Community-reported interventions with no literature at all - the
+        member loop as hypothesis generator. The one source competitors
+        cannot copy."
+  rule: "Excavation output enters as leads (source class B/C/D), passes the
+         same extraction and grading as everything else. No shortcuts to
+         the answer."
+
+# ---------------------------------------------------------------------------
+# G - governance
+# What makes this controlled rather than vibes.
+# ---------------------------------------------------------------------------
+governance:
+  G-1: "Semantic versioning. Any rule change bumps the version."
+  G-2: "Every published answer is stamped with the protocol version that
+        produced it."
+  G-3: "Rule changes are logged with rationale, and all affected claims are
+        re-graded; the diff ships with the next answer."
+  G-4: "Clinician sign-off is a release gate for anything patient-facing.
+        Reviewer: unappointed (open item)."
+  G-5: "No ad-hoc overrides. A grade that feels wrong means a rule is wrong:
+        propose the rule change, apply it everywhere, re-run."
+  G-7: "Claims are stated as positive assertions, phrased so they could be true or
+        false, with the Priority reading as the strength of evidence FOR the claim as
+        written. 'Drug X slows progression' graded Priority 3 says the evidence does
+        not support it. 'No drug slows progression' graded Priority 3 says the
+        opposite of what its own evidence shows. Introduced in 0.2.1 (P-9) after six
+        Q4 claims arrived phrased as negatives and inverted their own meaning. Where
+        a claim is restated to satisfy this rule, the restatement is recorded on the
+        claim, and the change is a claim edit rather than a rule change."
+  G-6: "Every patient-facing artifact carries the standard disclaimer, verbatim:
+        'Priority ratings rank the strength of published evidence for each
+        claim. They are not medical advice and are not instructions. Decisions
+        about medication, diet or exercise belong with you and your treating
+        team.' Wording changes to the disclaimer are rule changes (G-1/G-3).
+        Final wording subject to clinician review (G-4)."

@@ -1,0 +1,25 @@
+cff-version: 1.2.0
+message: If you use this protocol, please cite it as below.
+type: dataset
+title: Evidence grading protocol for Parkinson's questions
+authors:
+  - family-names: Smith
+    given-names: Ryan
+    affiliation: Navigator Consulting
+version: 0.2.1
+date-released: "2026-08-17"
+license: CC-BY-4.0
+repository-code: https://github.com/NavConsultAU/pd-evidence-protocol
+doi: 10.5281/zenodo.23175063
+keywords:
+  - Parkinson's disease
+  - evidence grading
+  - evidence synthesis
+  - protocol
+  - patient information
+abstract: >-
+  A versioned rulebook for grading published evidence against the questions
+  people with Parkinson's ask. Each rule has an id. A study and a claim produce
+  a Priority grade that ranks the strength of the evidence for the claim as
+  written. Grades are derived from the rules, never stored, and any rule change
+  bumps the version. Draft, not clinician reviewed, not medical advice.

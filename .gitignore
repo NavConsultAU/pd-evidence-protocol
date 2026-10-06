@@ -1,0 +1,6 @@
+# Ryan's publishing notes and the Zenodo upload bundle are not part of the repo
+PUBLISH.md
+/zenodo/
+.DS_Store
+Thumbs.db
+desktop.ini
