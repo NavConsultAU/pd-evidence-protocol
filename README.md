@@ -46,3 +46,5 @@ Creative Commons Attribution 4.0 International (CC BY 4.0). You may use, share a
 ## Citation
 
 Smith, R. (2026). Evidence grading protocol for Parkinson's questions (version 0.2.1). Zenodo. https://doi.org/10.5281/zenodo.23175063
+
+That DOI is for version 0.2.1. To link to the latest version, use the concept DOI: https://doi.org/10.5281/zenodo.23175062
